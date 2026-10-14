@@ -1,0 +1,50 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import time
+
+import os
+os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+
+import tensorflow as tf
+from tensorflow import keras  # pyright: ignore[reportMissingModuleSource]
+
+keras.utils.set_random_seed(42)
+t00 = time.time()
+
+dfHold = pd.read_csv('C:\\Users\\blake\\Downloads\\archive\\sudoku.csv')
+df_sudoku_full = dfHold.iloc[:100000, :]
+df_sudoku_full = df_sudoku_full.astype({"puzzle": str, "solution": str})
+df_sudoku_full['puzzle'] = df_sudoku_full['puzzle'].str.zfill(81)
+
+#Plan:
+#Find a way to one-hot encode the puzzles and solutions, turn each puzzle/solution from a 
+#string of 81 characters to an 81x10 array of one-hot encoded lists.
+#Next, create the network. The input layer will be 81x10 flattened to 810 nodes, some hidden layers of some optimal size,
+#and an output layer of 81x9 flattened to 729 nodes.
+#The output layer will be reshaped to 81x9 and the argmax of each row will be taken to get the predicted solution.
+
+
+one_hot_df_puzzle = (df_sudoku_full['puzzle']
+              .apply(list)
+              .explode()
+              .str.get_dummies()
+              .reindex(columns=[str(i) for i in range(10)], fill_value=0))
+
+one_hot_df_solution = (df_sudoku_full['solution']
+              .apply(list)
+              .explode()
+              .str.get_dummies()
+              .reindex(columns=[str(i) for i in range(9)], fill_value=0))
+
+one_hot_df = pd.concat([one_hot_df_puzzle, one_hot_df_solution], axis=1)
+
+train_size = int(len(one_hot_df) * 0.95)
+df_train_features = one_hot_df.iloc[:train_size, :10]
+df_train_labels = one_hot_df.iloc[:train_size, 10:]
+df_test_features = one_hot_df.iloc[train_size:, :10]
+df_test_labels = one_hot_df.iloc[train_size:, 10:]
+
+print(df_train_features.head())
+print(df_train_labels.head())
